@@ -1,215 +1,194 @@
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 /**
- * Represent a rectangular grid of field positions.
- * Each position stores an Animal
+ * Rectangular grid of field positions. Each cell holds at most one
+ * {@link Animal} (plants occupy cells too), or null when empty.
  *
  * @author Arjun Dhir
- * @version 2022.01.06
  */
-
 public class Field {
-    private static final Random rand = Randomizer.getRandom();
-    private int depth, width;
-    private Animal[][] field;
+
+    private static final Random RAND = Randomizer.getRandom();
+
+    private final int depth;
+    private final int width;
+    private final Animal[][] grid;
 
     /**
-     * Represent a field of the given dimensions.
-     * @param depth The depth of the field.
-     * @param width The width of the field.
+     * @param depth rows, must be greater than zero
+     * @param width columns, must be greater than zero
      */
     public Field(int depth, int width) {
+        if (depth <= 0 || width <= 0) {
+            throw new IllegalArgumentException("depth and width must be positive: " + depth + "x" + width);
+        }
         this.depth = depth;
         this.width = width;
-        field = new Animal[depth][width];
+        this.grid = new Animal[depth][width];
     }
 
-    /**
-     * Empty the field.
-     */
+    /** Empty the field. */
     public void clear() {
         for (int row = 0; row < depth; row++) {
             for (int col = 0; col < width; col++) {
-                field[row][col] = null;
+                grid[row][col] = null;
             }
         }
     }
 
     /**
      * Clear the given location.
-     * @param location The location to clear.
+     *
+     * @param location location to clear (must be in bounds)
      */
     public void clear(Location location) {
-        field[location.getRow()][location.getCol()] = null;
+        location.requireInside(depth, width);
+        grid[location.getRow()][location.getCol()] = null;
     }
 
     /**
-     * Place an animal at the given location.
-     * If there is already an animal at the location it will be lost.
-     * @param animal The animal to be placed.
-     * @param row Row coordinate of the location.
-     * @param col Column coordinate of the location.
+     * Place an animal at the given location, overwriting any occupant.
+     *
+     * @param animal animal to place (must not be null)
+     * @param row row coordinate
+     * @param col column coordinate
      */
     public void place(Animal animal, int row, int col) {
         place(animal, new Location(row, col));
     }
 
     /**
-     * Place an animal at the given location.
-     * If there is already an animal at the location it will be lost.
-     * @param animal The animal to be placed.
-     * @param location Where to place the animal.
+     * Place an animal at the given location, overwriting any occupant.
+     *
+     * @param animal animal to place (must not be null)
+     * @param location where to place it
      */
     public void place(Animal animal, Location location) {
-        field[location.getRow()][location.getCol()] = animal;
+        Objects.requireNonNull(animal, "animal must not be null");
+        location.requireInside(depth, width);
+        grid[location.getRow()][location.getCol()] = animal;
     }
 
     /**
-     * Return the animal at the given location, if any.
-     * @param location Where in the field.
-     * @return The animal at the given location, or null if there is none.
+     * @param location where in the field
+     * @return the animal at the location, or null if there is none
      */
     public Animal getObjectAt(Location location) {
         return getObjectAt(location.getRow(), location.getCol());
     }
 
     /**
-     * Return the animal at the given location, if any.
-     * @param row The desired row.
-     * @param col The desired column.
-     * @return The animal at the given location, or null if there is none.
+     * @return the animal at the given coordinates, or null if there is none
      */
     public Animal getObjectAt(int row, int col) {
-        return field[row][col];
+        Objects.checkIndex(row, depth);
+        Objects.checkIndex(col, width);
+        return grid[row][col];
     }
 
     /**
-     * Generate a random location that is adjacent to the
-     * given location, or is the same location.
-     * The returned location will be within the valid bounds
-     * of the field.
-     * @param location The location from which to generate an adjacency.
-     * @return A valid location within the grid area.
+     * Pick a random adjacent location (never the location itself).
+     * Locations are all within bounds.
+     *
+     * @param location origin
+     * @return a random neighbour
+     * @throws IllegalArgumentException when the location has no neighbours
      */
     public Location randomAdjacentLocation(Location location) {
         List<Location> adjacent = adjacentLocations(location);
-        return adjacent.get(0);
+        if (adjacent.isEmpty()) {
+            throw new IllegalArgumentException("location has no adjacent cells: " + location);
+        }
+        return adjacent.get(RAND.nextInt(adjacent.size()));
     }
 
     /**
-     * Return a shuffled list of locations adjacent to the given one.
-     * The list will not include the location itself.
-     * All locations will lie within the grid.
-     * @param location The location from which to generate adjacencies.
-     * @return A list of locations adjacent to that given.
+     * All locations adjacent to the given one, in random order.
+     * The list never includes the location itself and never leaves the grid.
+     *
+     * @param location origin (must not be null)
+     * @return shuffled neighbours
      */
     public List<Location> adjacentLocations(Location location) {
-        assert location != null : "Null location passed to adjacentLocations";
-        
+        Objects.requireNonNull(location, "location must not be null");
         List<Location> locations = new LinkedList<>();
-        if (location != null) {
-            int row = location.getRow();
-            int col = location.getCol();
-            for (int roffset = -1; roffset <= 1; roffset++) {
-                int nextRow = row + roffset;
-                if (nextRow >= 0 && nextRow < depth) {
-                    for (int coffset = -1; coffset <= 1; coffset++) {
-                        int nextCol = col + coffset;
-                        
-                        // Exclude invalid locations and the original location.
-                        if (nextCol >= 0 && nextCol < width && (roffset != 0 || coffset != 0)) {
-                            locations.add(new Location(nextRow, nextCol));
-                        }
-                    }
-                }
+        int row = location.getRow();
+        int col = location.getCol();
+        for (int rowOffset = -1; rowOffset <= 1; rowOffset++) {
+            int nextRow = row + rowOffset;
+            if (nextRow < 0 || nextRow >= depth) {
+                continue;
             }
-
-            // Shuffle the list. Several other methods rely on the list
-            // being in a random order.
-            Collections.shuffle(locations, rand);
+            for (int colOffset = -1; colOffset <= 1; colOffset++) {
+                int nextCol = col + colOffset;
+                if (nextCol < 0 || nextCol >= width || (rowOffset == 0 && colOffset == 0)) {
+                    continue;
+                }
+                locations.add(new Location(nextRow, nextCol));
+            }
         }
+        Collections.shuffle(locations, RAND);
         return locations;
     }
 
     /**
-     * Get a shuffled list of living neighbours
-     * @param location Get locations adjacent to this.
-     * @return A list of living neighbours
+     * Living neighbours in random order.
+     *
+     * @param location origin
+     * @return shuffled living neighbours
      */
     public List<Animal> getLivingNeighbours(Location location) {
-
-      assert location != null : "Null location passed to adjacentLocations";
-      List<Animal> neighbours = new LinkedList<>();
-
-      if (location != null) {
-        List<Location> adjLocations = adjacentLocations(location);
-
-        for (Location loc : adjLocations) {
-          Animal animal = field[loc.getRow()][loc.getCol()];
-          if (animal!=null && animal.isAlive())
-            neighbours.add(animal);
+        Objects.requireNonNull(location, "location must not be null");
+        List<Animal> neighbours = new ArrayList<>();
+        for (Location adjacent : adjacentLocations(location)) {
+            Animal animal = grid[adjacent.getRow()][adjacent.getCol()];
+            if (animal != null && animal.isAlive()) {
+                neighbours.add(animal);
+            }
         }
-        Collections.shuffle(neighbours, rand);
-      }
-      return neighbours;
+        return neighbours;
     }
 
-    /**
-     * Return the depth of the field.
-     * @return The depth of the field.
-     */
+    /** @return the depth (rows) of the field */
     public int getDepth() {
         return depth;
     }
 
-    /**
-     * Return the width of the field.
-     * @return The width of the field.
-     */
+    /** @return the width (columns) of the field */
     public int getWidth() {
         return width;
     }
-    
+
     /**
-     * Get a shuffled list of the free adjacent locations.
-     * @param location Get locations adjacent to this.
-     * @return A list of free adjacent locations.
+     * Free adjacent locations (empty cells and plants) in random order.
+     *
+     * @param location origin
+     * @return shuffled free neighbours
      */
     public List<Location> getFreeAdjacentLocations(Location location) {
         List<Location> free = new LinkedList<>();
-        List<Location> adjacent = adjacentLocations(location);
-        
-        
-        for(Location next : adjacent) {
-            
-            Animal animal = getObjectAt(next);
-            
-            if(getObjectAt(next) == null || animal instanceof Plant) {
+        for (Location next : adjacentLocations(location)) {
+            Animal occupant = getObjectAt(next);
+            if (occupant == null || occupant instanceof Plant) {
                 free.add(next);
             }
         }
         return free;
     }
-    
+
     /**
-     * Try to find a free location that is adjacent to the
-     * given location. If there is none, return null.
-     * The returned location will be within the valid bounds
-     * of the field.
-     * @param location The location from which to generate an adjacency.
-     * @return A valid location within the grid area.
+     * A random free adjacent location, or null when surrounded.
+     *
+     * @param location origin
+     * @return a free neighbour, or null
      */
     public Location getFreeAdjacentLocation(Location location) {
-        
         List<Location> free = getFreeAdjacentLocations(location);
-        if(free.size() > 0) {
-            return free.get(0);
-        }
-        else {
-            return null;
-        }
+        return free.isEmpty() ? null : free.get(0);
     }
 }

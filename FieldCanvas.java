@@ -1,50 +1,64 @@
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.paint.Color; 
+import javafx.scene.paint.Color;
+import java.util.Objects;
 
 /**
- * Provide a graphical view of the field. This is a custom node for the user interface. 
+ * Canvas that paints one small rectangle per field cell.
  *
  * @author Arjun Dhir
- * @version 2024.02.03
  */
-
 public class FieldCanvas extends Canvas {
 
-    private static final int GRID_VIEW_SCALING_FACTOR = 6;
-    private int width, height;
-    private int xScale, yScale;
-    GraphicsContext gc;
-    
+    private static final int MIN_SCALE = 6;
+
+    private final int pixelWidth;
+    private final int pixelHeight;
+    private int xScale = MIN_SCALE;
+    private int yScale = MIN_SCALE;
+    private final GraphicsContext gc;
+
     /**
-    * Create a new FieldView component.
-    */
-    public FieldCanvas(int height, int width) {
-        super(height, width);
-        gc = getGraphicsContext2D();
-        this.height = height;
-        this.width = width;
+     * @param width canvas width in pixels
+     * @param height canvas height in pixels
+     */
+    public FieldCanvas(int width, int height) {
+        super(width, height);
+        this.pixelWidth = width;
+        this.pixelHeight = height;
+        this.gc = getGraphicsContext2D();
     }
-    
+
     /**
-     * The scale determines the actual size of the rectangles that are drawn
+     * Derive cell size from the grid dimensions. Falls back to a fixed
+     * minimum scale when the grid is larger than the canvas.
+     *
+     * @param gridHeight rows in the field
+     * @param gridWidth columns in the field
      */
     public void setScale(int gridHeight, int gridWidth) {
-        xScale = width / gridWidth;
-        yScale = height / gridHeight;
-    
-        if (xScale < 1)
-            xScale = GRID_VIEW_SCALING_FACTOR;
-    
-        if (yScale < 1)
-            yScale = GRID_VIEW_SCALING_FACTOR;
+        if (gridHeight <= 0 || gridWidth <= 0) {
+            throw new IllegalArgumentException("grid dimensions must be positive");
+        }
+        xScale = pixelWidth / gridWidth;
+        yScale = pixelHeight / gridHeight;
+        if (xScale < 1) {
+            xScale = MIN_SCALE;
+        }
+        if (yScale < 1) {
+            yScale = MIN_SCALE;
+        }
     }
-  
+
     /**
-    * Paint a rectangle of the given color on the canvas
-    */
+     * Paint one cell.
+     *
+     * @param x column
+     * @param y row
+     * @param color fill (must not be null)
+     */
     public void drawMark(int x, int y, Color color) {
-        gc.setFill(color);
-        gc.fillRect(x * xScale, y * yScale, xScale-1, yScale-1);
+        gc.setFill(Objects.requireNonNull(color, "color must not be null"));
+        gc.fillRect(x * xScale, y * yScale, Math.max(1, xScale - 1), Math.max(1, yScale - 1));
     }
 }

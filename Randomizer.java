@@ -1,42 +1,37 @@
 import java.util.Random;
 
 /**
- * Provide control over the randomization of the simulation. By using the
- * shared, fixed-seed randomizer, repeated runs will perform exactly the same
- * (which helps with testing). Set 'useShared' to false to get different random
- * behaviour every time.
+ * Single source of randomness for the simulation. A shared fixed-seed
+ * generator keeps repeated runs identical, which makes behaviour testable.
+ * Flip {@code USE_SHARED} to false for different behaviour every run.
  *
  * @author Arjun Dhir
- * @version 2016.02.29
  */
+public final class Randomizer {
 
-public class Randomizer {
-  
     private static final int SEED = 1111;
-    private static final Random rand = new Random(SEED);
-    private static final boolean useShared = true;
+    private static final Random SHARED = new Random(SEED);
+    private static final boolean USE_SHARED = true;
 
-    /**
-     * Provide a random generator.
-     * @return A random object.
-     */
+    private Randomizer() {
+        // Utility class; never instantiated.
+    }
+
+    /** @return the simulation random generator */
     public static Random getRandom() {
-        if (useShared) {
-            return rand;
+        if (USE_SHARED) {
+            return SHARED;
         }
-        else {
-            return new Random();
-        }
+        return new Random();
     }
 
     /**
-     * Reset the randomization.
-     * This will have no effect if randomization is not through
-     * a shared Random generator.
+     * Re-seed the shared generator. No effect when randomness is unshared.
+     * Called by {@link Simulator#reset()} so a fresh run repeats exactly.
      */
     public static void reset() {
-        if (useShared) {
-            rand.setSeed(SEED);
+        if (USE_SHARED) {
+            SHARED.setSeed(SEED);
         }
     }
 }

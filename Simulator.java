@@ -1,134 +1,131 @@
-import java.util.Random;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
-import javafx.scene.paint.Color; 
+import java.util.List;
+import java.util.Random;
+import javafx.scene.paint.Color;
 
 /**
- * A simple predator-prey simulator, based on a rectangular field
- * containing 6 different animal species.
- * 
+ * Owns the population and the field, and advances the ecosystem one step
+ * at a time. Each simulation step every living animal acts once; the dead
+ * are removed and the newborns join the population.
+ *
+ * <p>Setup rolls one random draw per cell and maps it onto cumulative
+ * species probabilities, so the creation chances are exactly the constants
+ * below. All other cells grow plants.
+ *
  * @author Arjun Dhir
- * @version 2025.02.10
  */
-
 public class Simulator {
+
+    /** Default field size used by the graphical view. */
+    public static final int DEFAULT_DEPTH = 80;
+    /** Default field size used by the graphical view. */
+    public static final int DEFAULT_WIDTH = 100;
 
     private static final double WOLF_CREATION_PROBABILITY = 0.03;
     private static final double BEAR_CREATION_PROBABILITY = 0.02;
     private static final double COYOTE_CREATION_PROBABILITY = 0.05;
     private static final double SHEEP_CREATION_PROBABILITY = 0.09;
     private static final double DEER_CREATION_PROBABILITY = 0.11;
-    private static final double SQUIRREL_CREATION_PROBABILITY = 0.13; 
+    private static final double SQUIRREL_CREATION_PROBABILITY = 0.13;
 
-    private List<Animal> animals;
-    private Field field;
+    private final List<Animal> animals = new ArrayList<>();
+    private final Field field;
     private int step;
-    
+
     /**
-     * Create a simulation field with the given size.
-     * @param depth Depth of the field. Must be greater than zero.
-     * @param width Width of the field. Must be greater than zero.
+     * @param depth rows, must be greater than zero
+     * @param width columns, must be greater than zero
      */
     public Simulator(int depth, int width) {
-        
-        animals = new ArrayList<>();
         field = new Field(depth, width);
-
         reset();
     }
-    
+
     /**
-     * Run the simulation from its current state for a single step.
-     * Iterate over the whole field updating the state of each
-     * animal.
+     * Advance every living animal once: the dead leave the population and
+     * the newborns join it.
      */
     public void simulateOneStep() {
         step++;
-        List<Animal> newAnimals = new ArrayList<>();        
-
-        for(Iterator<Animal> it = animals.iterator(); it.hasNext(); ) {
+        List<Animal> newborns = new ArrayList<>();
+        for (Iterator<Animal> it = animals.iterator(); it.hasNext(); ) {
             Animal animal = it.next();
-            animal.act(newAnimals);
-            if(! animal.isAlive()) {
+            if (!animal.isAlive()) {
+                // Eaten by an earlier animal this step; never gets to act.
+                it.remove();
+                continue;
+            }
+            animal.act(newborns);
+            if (!animal.isAlive()) {
                 it.remove();
             }
         }
-               
-        animals.addAll(newAnimals);
+        animals.addAll(newborns);
+        // Animals eaten after they acted die mid-step; purge so the
+        // population only ever holds the living.
+        animals.removeIf(animal -> !animal.isAlive());
     }
-        
-    /**
-     * Reset the simulation to a starting position.
-     */
+
+    /** Return the simulation to a fresh starting position. */
     public void reset() {
         step = 0;
+        Randomizer.reset();
         animals.clear();
         populate();
     }
-    
+
     /**
-     * Randomly populate the field with the animals.
+     * Fill the field: one random draw per cell, cumulative species chances,
+     * plants everywhere else.
      */
     private void populate() {
-        
         Random rand = Randomizer.getRandom();
         field.clear();
-        
-        for(int row = 0; row < field.getDepth(); row++) {
-            for(int col = 0; col < field.getWidth(); col++) {
-                if(rand.nextDouble() <= WOLF_CREATION_PROBABILITY) {
-                    Location location = new Location(row, col);
-                    Wolf wolf = new Wolf(true, field, location, Color.BLUE,new Gene());
-                    animals.add(wolf);
+        for (int row = 0; row < field.getDepth(); row++) {
+            for (int col = 0; col < field.getWidth(); col++) {
+                Location location = new Location(row, col);
+                double roll = rand.nextDouble();
+                if (roll < WOLF_CREATION_PROBABILITY) {
+                    animals.add(new Wolf(true, field, location, Color.BLUE, new Gene()));
                 }
-                else if(rand.nextDouble() <= COYOTE_CREATION_PROBABILITY) {
-                    Location location = new Location(row, col);
-                    Coyote coyote = new Coyote(true, field, location, Color.RED,new Gene());
-                    animals.add(coyote);
+                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY) {
+                    animals.add(new Bear(true, field, location, Color.YELLOW, new Gene()));
                 }
-                else if(rand.nextDouble() <= BEAR_CREATION_PROBABILITY) {
-                    Location location = new Location(row, col);
-                    Bear bear = new Bear(true, field, location, Color.YELLOW,new Gene());
-                    animals.add(bear);
+                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY + COYOTE_CREATION_PROBABILITY) {
+                    animals.add(new Coyote(true, field, location, Color.RED, new Gene()));
                 }
-                else if(rand.nextDouble() <= SHEEP_CREATION_PROBABILITY) {
-                    Location location = new Location(row, col);
-                    Sheep sheep = new Sheep(true, field, location, Color.PURPLE,new Gene());
-                    animals.add(sheep);
+                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY + COYOTE_CREATION_PROBABILITY + SHEEP_CREATION_PROBABILITY) {
+                    animals.add(new Sheep(true, field, location, Color.PURPLE, new Gene()));
                 }
-                else if(rand.nextDouble() <= DEER_CREATION_PROBABILITY) {
-                    Location location = new Location(row, col);
-                    Deer deer = new Deer(true, field, location, Color.BROWN,new Gene());
-                    animals.add(deer);
+                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY + COYOTE_CREATION_PROBABILITY + SHEEP_CREATION_PROBABILITY + DEER_CREATION_PROBABILITY) {
+                    animals.add(new Deer(true, field, location, Color.BROWN, new Gene()));
                 }
-                else if(rand.nextDouble() <= SQUIRREL_CREATION_PROBABILITY) {
-                    Location location = new Location(row, col);
-                    Squirrel squirrel = new Squirrel(true, field, location, Color.PINK,new Gene());
-                    animals.add(squirrel);
+                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY + COYOTE_CREATION_PROBABILITY + SHEEP_CREATION_PROBABILITY + DEER_CREATION_PROBABILITY + SQUIRREL_CREATION_PROBABILITY) {
+                    animals.add(new Squirrel(true, field, location, Color.PINK, new Gene()));
                 }
-                else{
-                    Location location = new Location(row,col);
-                    new Plant(field,location);
+                else {
+                    new Plant(field, location);
                 }
-                // else put a plant in the free space
             }
         }
     }
-    
+
     /**
-     * Pause for a given time.
-     * @param millisec  The time to pause for, in milliseconds
+     * Pause the calling thread. Interrupts are swallowed so animation loops
+     * keep running; callers that care should watch the interrupt flag.
+     *
+     * @param millisec time to pause, in milliseconds
      */
     public void delay(int millisec) {
         try {
             Thread.sleep(millisec);
         }
-        catch (InterruptedException ie) {
-            // wake up
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
-    
 
     public Field getField() {
         return field;
@@ -136,5 +133,10 @@ public class Simulator {
 
     public int getStep() {
         return step;
+    }
+
+    /** Live population; read-only. */
+    public List<Animal> getAnimals() {
+        return Collections.unmodifiableList(animals);
     }
 }

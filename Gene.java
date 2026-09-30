@@ -1,140 +1,180 @@
+import java.util.Objects;
 import java.util.Random;
 
 /**
- * Write a description of class Gene here.
+ * Immutable genetic traits for one animal, encoded as a 14-digit string:
+ *
+ * <pre>
+ * positions  traits               range
+ * 0-1        breeding age         12-90
+ * 2-4        lifespan             10-120
+ * 5-6        breeding probability 10-80 (%)
+ * 7-8        litter size          1-12
+ * 9-10       disease probability  0-50 (%)
+ * 11-13      metabolism           25-100 (% of one food unit per step)
+ * </pre>
+ *
+ * <p>Offspring inherit the first half (age, lifespan, breeding probability)
+ * from their father and the second half (litter size, disease probability,
+ * metabolism) from their mother; each digit then mutates up or down by one
+ * with a 20% probability and the fields are clamped back into range.
  *
  * @author Arjun Dhir
- * @version (a version number or a date)
  */
-public class Gene
-{
-    private final String STRING_GENE;
-    private final int BREEDING_AGE;
-    private final int LIFE_SPAN;
-    private final double BREEDING_PROBABILITY;
-    private final int LITTER_SIZE;
-    private final double DISEASE_PROBABILITY;
-    private final double METABOLISM;
-    
-    public Gene(){
-        Random rand = new Random();
-        
-        int breedingAge= rand.nextInt(79) + 12;
-        int lifeSpan = rand.nextInt(111) + 10;
-        int breedingProbability = rand.nextInt(51) ;
-        int litterSize = rand.nextInt(12) + 1;
-        int diseaseProbability = rand.nextInt(51) ;
-        int metabolism = (rand.nextInt(76) + 25) ;
-        
-        STRING_GENE = String.format( "%02d%03d%02d%02d%02d%03d", breedingAge, lifeSpan, breedingProbability,litterSize,diseaseProbability,metabolism);
-        
-        BREEDING_AGE = breedingAge;
-        LIFE_SPAN = lifeSpan;
-        BREEDING_PROBABILITY = breedingProbability / 100.0;
-        LITTER_SIZE = litterSize;
-        DISEASE_PROBABILITY = diseaseProbability / 100.0;
-        METABOLISM = metabolism / 100.0 ;
-         
-    }
-    
-    public Gene (String gene){
-        if ( gene.equals("00000000000000")){
-            STRING_GENE = gene;
-            BREEDING_AGE = Integer.parseInt(gene.substring(0,2));
-            LIFE_SPAN = Integer.parseInt(gene.substring(2,5));
-            BREEDING_PROBABILITY = Integer.parseInt(gene.substring(5,7)) / 100.0;
-            LITTER_SIZE = Integer.parseInt(gene.substring(7,9));
-            DISEASE_PROBABILITY = Integer.parseInt(gene.substring(9,11)) / 100.0;
-            METABOLISM = Integer.parseInt(gene.substring(11,14)) / 100.0;
-        }
-        else{
-            STRING_GENE = mutate(gene);
-            BREEDING_AGE = Integer.parseInt(STRING_GENE.substring(0,2));
-            LIFE_SPAN = Integer.parseInt(STRING_GENE.substring(2,5));
-            BREEDING_PROBABILITY = Integer.parseInt(STRING_GENE.substring(5,7)) / 100.0;
-            LITTER_SIZE = Integer.parseInt(STRING_GENE.substring(7,9));
-            DISEASE_PROBABILITY = Integer.parseInt(STRING_GENE.substring(9,11)) / 100.0;
-            METABOLISM = Integer.parseInt(STRING_GENE.substring(11,14)) / 100.0;
-    }
-    }
-    public int getBreedingAge(){
-        return BREEDING_AGE;
-    }
-    
-    public int getLifeSpan(){
-        return LIFE_SPAN;
-    }
-    
-    public double getBreedingProbability(){
-        return BREEDING_PROBABILITY;
-    }
-    
-    public int getLitterSize(){
-        return LITTER_SIZE;
-    }
-    
-    public double getDiseaseProbability(){
-        return DISEASE_PROBABILITY;
-    }
-    
-    public double getMetabolism(){
-        return METABOLISM;
-    }
-    
-    public String getStringGene(){
-        return STRING_GENE;
-    }
-    
+public final class Gene {
+
+    /** Length of every gene string. */
+    public static final int GENE_LENGTH = 14;
     /**
-     * Ensures all gene values are within the limits after mutating. 
+     * Crossover point between the paternal half (breeding age, lifespan,
+     * breeding probability) and the maternal half (litter size, disease
+     * probability, metabolism).
      */
-    public int limit(int attribute, int lower, int upper){
-        if (attribute > upper){
-            return upper;
-        }
-        if (attribute < lower){
-            return lower;
-        }
-        return attribute;
+    public static final int CROSSOVER_INDEX = 7;
+
+    public static final int MIN_BREEDING_AGE = 12;
+    public static final int MAX_BREEDING_AGE = 90;
+    public static final int MIN_LIFE_SPAN = 10;
+    public static final int MAX_LIFE_SPAN = 120;
+    public static final int MIN_BREEDING_PROBABILITY = 10;
+    public static final int MAX_BREEDING_PROBABILITY = 80;
+    public static final int MIN_LITTER_SIZE = 1;
+    public static final int MAX_LITTER_SIZE = 12;
+    public static final int MIN_DISEASE_PROBABILITY = 0;
+    public static final int MAX_DISEASE_PROBABILITY = 50;
+    public static final int MIN_METABOLISM = 25;
+    public static final int MAX_METABOLISM = 100;
+    private static final double MUTATION_RATE = 0.2;
+    private static final String STERILE_CODE = "00000000000000";
+
+    private final String code;
+    private final int breedingAge;
+    private final int lifeSpan;
+    private final double breedingProbability;
+    private final int litterSize;
+    private final double diseaseProbability;
+    private final double metabolism;
+
+    /** Roll a completely random gene. */
+    public Gene() {
+        this(randomCode(Randomizer.getRandom()));
     }
-    
-    public String mutate(String gene){
-        Random rand = Randomizer.getRandom();
-        
-        String mutated_gene = "";
-        
-        for (int i = 0; i < gene.length(); i++){
-            int current = Integer.parseInt(gene.substring(i,i+1));
-            
-            if (rand.nextDouble() < 0.2){
-                double chance = rand.nextDouble();
-                if (chance < 0.5){
-                    if (current != 0){
-                        current -= 1;
-                    }
+
+    /**
+     * Decode an exact gene string.
+     *
+     * @param code 14 digits as described above
+     * @throws IllegalArgumentException if the code is not 14 digits
+     */
+    public Gene(String code) {
+        this.code = validate(code);
+        breedingAge = parse(code, 0, 2);
+        lifeSpan = parse(code, 2, 5);
+        breedingProbability = parse(code, 5, 7) / 100.0;
+        litterSize = parse(code, 7, 9);
+        diseaseProbability = parse(code, 9, 11) / 100.0;
+        metabolism = parse(code, 11, 14) / 100.0;
+    }
+
+    /**
+     * Breed two genes: crossover at the paternal/maternal boundary, then mutate.
+     *
+     * @param father source of the first half (must not be null)
+     * @param mother source of the second half (must not be null)
+     * @return the offspring gene
+     */
+    public static Gene combine(Gene father, Gene mother) {
+        Objects.requireNonNull(father, "father gene must not be null");
+        Objects.requireNonNull(mother, "mother gene must not be null");
+        String crossed = father.code.substring(0, CROSSOVER_INDEX)
+                + mother.code.substring(CROSSOVER_INDEX);
+        return new Gene(mutate(crossed, Randomizer.getRandom()));
+    }
+
+    /** Gene for plants, which do not evolve. */
+    public static Gene sterile() {
+        return new Gene(STERILE_CODE);
+    }
+
+    public int getBreedingAge() {
+        return breedingAge;
+    }
+
+    public int getLifeSpan() {
+        return lifeSpan;
+    }
+
+    public double getBreedingProbability() {
+        return breedingProbability;
+    }
+
+    public int getLitterSize() {
+        return litterSize;
+    }
+
+    public double getDiseaseProbability() {
+        return diseaseProbability;
+    }
+
+    public double getMetabolism() {
+        return metabolism;
+    }
+
+    public String getStringGene() {
+        return code;
+    }
+
+    private static String randomCode(Random rand) {
+        return String.format("%02d%03d%02d%02d%02d%03d",
+                MIN_BREEDING_AGE + rand.nextInt(MAX_BREEDING_AGE - MIN_BREEDING_AGE + 1),
+                MIN_LIFE_SPAN + rand.nextInt(MAX_LIFE_SPAN - MIN_LIFE_SPAN + 1),
+                MIN_BREEDING_PROBABILITY + rand.nextInt(MAX_BREEDING_PROBABILITY - MIN_BREEDING_PROBABILITY + 1),
+                MIN_LITTER_SIZE + rand.nextInt(MAX_LITTER_SIZE - MIN_LITTER_SIZE + 1),
+                MIN_DISEASE_PROBABILITY + rand.nextInt(MAX_DISEASE_PROBABILITY - MIN_DISEASE_PROBABILITY + 1),
+                MIN_METABOLISM + rand.nextInt(MAX_METABOLISM - MIN_METABOLISM + 1));
+    }
+
+    /**
+     * Nudge each digit up or down by one with a 20% probability, then clamp
+     * every field back into range.
+     */
+    private static String mutate(String code, Random rand) {
+        char[] digits = code.toCharArray();
+        for (int i = 0; i < digits.length; i++) {
+            if (rand.nextDouble() < MUTATION_RATE) {
+                int digit = digits[i] - '0';
+                if (rand.nextDouble() < 0.5) {
+                    digit = Math.max(0, digit - 1);
                 }
-                
-                if (chance > 0.5){
-                    if (current !=9){
-                        current += 1;
-                    }
+                else {
+                    digit = Math.min(9, digit + 1);
                 }
-                
+                digits[i] = (char) ('0' + digit);
             }
-            mutated_gene+=current;
         }
-        
-        
-        int breedingAgeTemp = limit(Integer.parseInt(mutated_gene.substring(0, 2)), 12, 90);
-        int lifeSpanTemp = limit(Integer.parseInt(mutated_gene.substring(2, 5)), 10, 120);
-        int breedingProbabilityTemp = limit(Integer.parseInt(mutated_gene.substring(5, 7)), 0, 50);
-        int litterSizeTemp = limit(Integer.parseInt(mutated_gene.substring(7, 9)), 1, 12);
-        int diseaseProbabilityTemp = limit(Integer.parseInt(mutated_gene.substring(9, 11)), 0, 50);
-        int metabolismTemp = limit(Integer.parseInt(mutated_gene.substring(11, 14)), 25, 100);
-        
-        
-        
-        
-        return String.format("%02d%03d%02d%02d%02d%03d",breedingAgeTemp,lifeSpanTemp,breedingProbabilityTemp,litterSizeTemp,diseaseProbabilityTemp,metabolismTemp);
+        String mutated = new String(digits);
+        return String.format("%02d%03d%02d%02d%02d%03d",
+                clamp(parse(mutated, 0, 2), MIN_BREEDING_AGE, MAX_BREEDING_AGE),
+                clamp(parse(mutated, 2, 5), MIN_LIFE_SPAN, MAX_LIFE_SPAN),
+                clamp(parse(mutated, 5, 7), MIN_BREEDING_PROBABILITY, MAX_BREEDING_PROBABILITY),
+                clamp(parse(mutated, 7, 9), MIN_LITTER_SIZE, MAX_LITTER_SIZE),
+                clamp(parse(mutated, 9, 11), MIN_DISEASE_PROBABILITY, MAX_DISEASE_PROBABILITY),
+                clamp(parse(mutated, 11, 14), MIN_METABOLISM, MAX_METABOLISM));
+    }
+
+    private static int clamp(int value, int lower, int upper) {
+        return Math.min(upper, Math.max(lower, value));
+    }
+
+    private static int parse(String code, int begin, int end) {
+        return Integer.parseInt(code.substring(begin, end));
+    }
+
+    private static String validate(String code) {
+        Objects.requireNonNull(code, "gene code must not be null");
+        if (code.length() != GENE_LENGTH || !code.chars().allMatch(Character::isDigit)) {
+            throw new IllegalArgumentException("gene code must be " + GENE_LENGTH + " digits: " + code);
+        }
+        return code;
     }
 }

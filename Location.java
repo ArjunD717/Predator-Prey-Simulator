@@ -1,67 +1,64 @@
+import java.util.Objects;
+
 /**
- * Represent a location in a rectangular grid.
+ * Immutable row/column position in the field grid.
  *
  * @author Arjun Dhir
- * @version 2016.02.29
  */
+public final class Location {
 
-public class Location {
-
-    private int row;
-    private int col;
+    private final int row;
+    private final int col;
 
     /**
-     * Represent a row and column.
-     * @param row The row.
-     * @param col The column.
+     * @param row row index
+     * @param col column index
      */
     public Location(int row, int col) {
         this.row = row;
         this.col = col;
     }
 
-    /**
-     * Implement content equality.
-     */
+    @Override
     public boolean equals(Object obj) {
-        if (obj instanceof Location) {
-            Location other = (Location) obj;
-            return row == other.getRow() && col == other.getCol();
+        if (this == obj) {
+            return true;
         }
-        else {
+        if (!(obj instanceof Location other)) {
             return false;
         }
+        return row == other.row && col == other.col;
     }
 
-    /**
-     * Return a string of the form row,column
-     * @return A string representation of the location.
-     */
+    @Override
     public String toString() {
         return row + "," + col;
     }
 
     /**
-     * Use the top 16 bits for the row value and the bottom for
-     * the column. Except for very big grids, this should give a
-     * unique hash code for each (row, col) pair.
-     * @return A hashcode for the location.
+     * Packs the row into the top 16 bits and the column into the bottom,
+     * giving a unique hash for all but very large grids.
+     *
+     * @return hash code for the (row, col) pair
      */
+    @Override
     public int hashCode() {
         return (row << 16) + col;
     }
 
-    /**
-     * @return The row.
-     */
+    /** @return the row */
     public int getRow() {
         return row;
     }
 
-    /**
-     * @return The column.
-     */
+    /** @return the column */
     public int getCol() {
         return col;
+    }
+
+    /** Fail fast when a location must lie inside the field. */
+    void requireInside(int depth, int width) {
+        Objects.checkIndex(row, depth);
+        Objects.checkIndex(col, width);
     }
 }

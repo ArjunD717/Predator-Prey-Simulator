@@ -1,4 +1,24 @@
+# Compiled output and packaged jars
 *.class
-*.ctxt
+*.jar
+out/
+target/
+build/
+
+# BlueJ
 package.bluej
+*.ctxt
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.eclipse/
+.settings/
+.classpath
+.project
+*.code-workspace
+
+# OS
 .DS_Store
+Thumbs.db

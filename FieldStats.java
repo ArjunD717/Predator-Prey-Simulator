@@ -1,112 +1,100 @@
 import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
- * This class collects and provides some statistical data on the state
- * of a field. It is flexible: it will create and maintain a counter
- * for any class of object that is found within the field.
+ * Counts live animals per species for the population label and decides
+ * whether the ecosystem is still worth running.
  *
  * @author Arjun Dhir
- * @version 2016.02.29
  */
-
 public class FieldStats {
-    
-    private HashMap<Class, Counter> counters;
-    private boolean countsValid;
 
-    /**
-     * Construct a FieldStats object.  Set up a collection for counters for
-     * each type of animal that we might find
-     */
+    private final Map<Class<?>, Counter> counters = new HashMap<>();
+    private boolean countsValid = false;
+
+    /** Build an empty stats collector. */
     public FieldStats() {
-        counters = new HashMap<>();
-        countsValid = true;
     }
 
     /**
-     * Get details of what is in the field.
-     * @return A string describing what is in the field.
+     * @param field field to describe
+     * @return population summary such as {@code "Bear: 12 Deer: 40 "}
      */
     public String getPopulationDetails(Field field) {
-        StringBuffer buffer = new StringBuffer();
         if (!countsValid) {
             generateCounts(field);
         }
-        for (Class key : counters.keySet()) {
-            Counter info = counters.get(key);
-            buffer.append(info.getName());
-            buffer.append(": ");
-            buffer.append(info.getCount());
-            buffer.append(' ');
+        Map<String, Counter> ordered = new TreeMap<>();
+        for (Counter counter : counters.values()) {
+            ordered.put(counter.getName(), counter);
+        }
+        StringBuilder buffer = new StringBuilder();
+        for (Counter info : ordered.values()) {
+            buffer.append(info.getName()).append(": ").append(info.getCount()).append(' ');
         }
         return buffer.toString();
     }
 
-    /**
-     * Invalidate the current set of statistics; reset all
-     * counts to zero.
-     */
+    /** Drop all counts; they are rebuilt lazily on next read. */
     public void reset() {
         countsValid = false;
-        for (Class key : counters.keySet()) {
-            Counter count = counters.get(key);
-            count.reset();
+        for (Counter counter : counters.values()) {
+            counter.reset();
         }
     }
 
     /**
-     * Increment the count for one class of animal
-     * @param animalClass The class of animal to increment.
+     * Count one animal of the given class.
+     *
+     * @param animalClass class of animal to count
      */
-    public void incrementCount(Class animalClass) {
-        Counter count = counters.get(animalClass);
-
-        if (count == null) {
-            // We do not have a counter for this species yet. Create one.
-            count = new Counter(animalClass.getName());
-            counters.put(animalClass, count);
+    public void incrementCount(Class<?> animalClass) {
+        Counter counter = counters.get(animalClass);
+        if (counter == null) {
+            counter = new Counter(animalClass.getSimpleName());
+            counters.put(animalClass, counter);
         }
-        count.increment();
+        counter.increment();
     }
 
-    /**
-     * Indicate that an animal count has been completed.
-     */
+    /** Mark the current counts as complete. */
     public void countFinished() {
         countsValid = true;
     }
 
     /**
-     * Determine whether the simulation is still viable.
-     * I.e., should it continue to run.
-     * @return true If there is more than one animal form alive
+     * The run stays viable while at least two non-plant species are alive;
+     * a single surviving species (or an empty field) has nothing left to
+     * simulate. Plants are ground cover, not a species in this check.
+     *
+     * @param field field to check
+     * @return true if the simulation should continue
      */
     public boolean isViable(Field field) {
-        int nonZero = 0;
         if (!countsValid) {
             generateCounts(field);
         }
-        for (Class key : counters.keySet()) {
-            Counter info = counters.get(key);
-            if (info.getCount() > 0) {
-                nonZero++;
+        int speciesAlive = 0;
+        for (Map.Entry<Class<?>, Counter> entry : counters.entrySet()) {
+            if (entry.getKey() != Plant.class && entry.getValue().getCount() > 0) {
+                speciesAlive++;
             }
         }
-
-        return nonZero >= 1;
+        return speciesAlive >= 2;
     }
 
     /**
-     * Generate counts of the number of animals.
-     * These are not kept up to date.
-     * @param field The field to generate the stats for.
+     * Recount every cell. Not kept up to date; callers go through
+     * {@link #getPopulationDetails(Field)} or {@link #isViable(Field)}.
+     *
+     * @param field field to count
      */
     private void generateCounts(Field field) {
         reset();
         for (int row = 0; row < field.getDepth(); row++) {
             for (int col = 0; col < field.getWidth(); col++) {
                 Animal animal = field.getObjectAt(row, col);
-
                 if (animal != null) {
                     incrementCount(animal.getClass());
                 }
