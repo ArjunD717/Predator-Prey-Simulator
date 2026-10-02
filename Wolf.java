@@ -1,7 +1,7 @@
 import javafx.scene.paint.Color;
 
 /**
- * A wolf hunts adjacent prey, breeds with a nearby male (females only),
+ * A wolf hunts adjacent prey, breeds with an adjacent opposite-sex wolf,
  * and dies of hunger, disease, old age or overcrowding.
  *
  * @author Arjun Dhir

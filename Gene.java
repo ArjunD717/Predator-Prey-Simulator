@@ -44,8 +44,11 @@ public final class Gene {
     public static final int MAX_DISEASE_PROBABILITY = 50;
     public static final int MIN_METABOLISM = 25;
     public static final int MAX_METABOLISM = 100;
+
     private static final double MUTATION_RATE = 0.2;
     private static final String STERILE_CODE = "00000000000000";
+    /** Shared by every plant: sterile genes never vary, so never re-parse. */
+    private static final Gene STERILE = new Gene(STERILE_CODE);
 
     private final String code;
     private final int breedingAge;
@@ -91,9 +94,9 @@ public final class Gene {
         return new Gene(mutate(crossed, Randomizer.getRandom()));
     }
 
-    /** Gene for plants, which do not evolve. */
+    /** Gene for plants, which do not evolve. Shared, never mutated. */
     public static Gene sterile() {
-        return new Gene(STERILE_CODE);
+        return STERILE;
     }
 
     public int getBreedingAge() {
@@ -125,7 +128,7 @@ public final class Gene {
     }
 
     private static String randomCode(Random rand) {
-        return String.format("%02d%03d%02d%02d%02d%03d",
+        return codeOf(
                 MIN_BREEDING_AGE + rand.nextInt(MAX_BREEDING_AGE - MIN_BREEDING_AGE + 1),
                 MIN_LIFE_SPAN + rand.nextInt(MAX_LIFE_SPAN - MIN_LIFE_SPAN + 1),
                 MIN_BREEDING_PROBABILITY + rand.nextInt(MAX_BREEDING_PROBABILITY - MIN_BREEDING_PROBABILITY + 1),
@@ -153,7 +156,7 @@ public final class Gene {
             }
         }
         String mutated = new String(digits);
-        return String.format("%02d%03d%02d%02d%02d%03d",
+        return codeOf(
                 clamp(parse(mutated, 0, 2), MIN_BREEDING_AGE, MAX_BREEDING_AGE),
                 clamp(parse(mutated, 2, 5), MIN_LIFE_SPAN, MAX_LIFE_SPAN),
                 clamp(parse(mutated, 5, 7), MIN_BREEDING_PROBABILITY, MAX_BREEDING_PROBABILITY),
@@ -162,18 +165,50 @@ public final class Gene {
                 clamp(parse(mutated, 11, 14), MIN_METABOLISM, MAX_METABOLISM));
     }
 
+    /** Zero-padded encoding without the cost of String.format. */
+    private static String codeOf(int breedingAge, int lifeSpan, int breedingProbability,
+            int litterSize, int diseaseProbability, int metabolism) {
+        StringBuilder code = new StringBuilder(GENE_LENGTH);
+        appendPadded(code, breedingAge, 2);
+        appendPadded(code, lifeSpan, 3);
+        appendPadded(code, breedingProbability, 2);
+        appendPadded(code, litterSize, 2);
+        appendPadded(code, diseaseProbability, 2);
+        appendPadded(code, metabolism, 3);
+        return code.toString();
+    }
+
+    private static void appendPadded(StringBuilder out, int value, int width) {
+        String digits = Integer.toString(value);
+        for (int i = digits.length(); i < width; i++) {
+            out.append('0');
+        }
+        out.append(digits);
+    }
+
     private static int clamp(int value, int lower, int upper) {
         return Math.min(upper, Math.max(lower, value));
     }
 
+    /** Digit-by-digit parse: no substring allocation. */
     private static int parse(String code, int begin, int end) {
-        return Integer.parseInt(code.substring(begin, end));
+        int value = 0;
+        for (int i = begin; i < end; i++) {
+            value = value * 10 + (code.charAt(i) - '0');
+        }
+        return value;
     }
 
     private static String validate(String code) {
         Objects.requireNonNull(code, "gene code must not be null");
-        if (code.length() != GENE_LENGTH || !code.chars().allMatch(Character::isDigit)) {
+        if (code.length() != GENE_LENGTH) {
             throw new IllegalArgumentException("gene code must be " + GENE_LENGTH + " digits: " + code);
+        }
+        for (int i = 0; i < code.length(); i++) {
+            char c = code.charAt(i);
+            if (c < '0' || c > '9') {
+                throw new IllegalArgumentException("gene code must be " + GENE_LENGTH + " digits: " + code);
+            }
         }
         return code;
     }

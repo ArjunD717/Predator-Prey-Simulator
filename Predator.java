@@ -1,3 +1,4 @@
+import java.util.List;
 import javafx.scene.paint.Color;
 
 /**
@@ -21,14 +22,15 @@ public abstract class Predator extends Animal {
     }
 
     /**
-     * Eat the first live prey in a neighbouring cell.
+     * Eat the first live prey among the given neighbours.
      *
+     * @param adjacent neighbouring locations in random order
      * @return where food was found, or null if there was none
      */
     @Override
-    protected final Location findFood() {
+    protected final Location findFood(List<Location> adjacent) {
         Field field = getField();
-        for (Location where : field.adjacentLocations(getLocation())) {
+        for (Location where : adjacent) {
             Animal target = field.getObjectAt(where);
             if (target instanceof Prey && target.isAlive()) {
                 addFood(((Prey) target).getFood());

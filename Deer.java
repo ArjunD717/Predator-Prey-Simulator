@@ -1,8 +1,8 @@
 import javafx.scene.paint.Color;
 
 /**
- * A deer grazes on adjacent plants, breeds with a nearby stag (does only),
- * and is hunted as prey.
+ * A deer grazes on adjacent plants, breeds with an adjacent opposite-sex
+ * deer, and is hunted as prey.
  *
  * @author Arjun Dhir
  */

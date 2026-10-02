@@ -1,6 +1,6 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -12,8 +12,6 @@ import java.util.Random;
  * @author Arjun Dhir
  */
 public class Field {
-
-    private static final Random RAND = Randomizer.getRandom();
 
     private final int depth;
     private final int width;
@@ -35,9 +33,7 @@ public class Field {
     /** Empty the field. */
     public void clear() {
         for (int row = 0; row < depth; row++) {
-            for (int col = 0; col < width; col++) {
-                grid[row][col] = null;
-            }
+            Arrays.fill(grid[row], null);
         }
     }
 
@@ -104,7 +100,7 @@ public class Field {
         if (adjacent.isEmpty()) {
             throw new IllegalArgumentException("location has no adjacent cells: " + location);
         }
-        return adjacent.get(RAND.nextInt(adjacent.size()));
+        return adjacent.get(Randomizer.getRandom().nextInt(adjacent.size()));
     }
 
     /**
@@ -112,11 +108,11 @@ public class Field {
      * The list never includes the location itself and never leaves the grid.
      *
      * @param location origin (must not be null)
-     * @return shuffled neighbours
+     * @return shuffled neighbours (at most eight entries)
      */
     public List<Location> adjacentLocations(Location location) {
         Objects.requireNonNull(location, "location must not be null");
-        List<Location> locations = new LinkedList<>();
+        List<Location> locations = new ArrayList<>(8);
         int row = location.getRow();
         int col = location.getCol();
         for (int rowOffset = -1; rowOffset <= 1; rowOffset++) {
@@ -132,7 +128,7 @@ public class Field {
                 locations.add(new Location(nextRow, nextCol));
             }
         }
-        Collections.shuffle(locations, RAND);
+        Collections.shuffle(locations, Randomizer.getRandom());
         return locations;
     }
 
@@ -144,7 +140,7 @@ public class Field {
      */
     public List<Animal> getLivingNeighbours(Location location) {
         Objects.requireNonNull(location, "location must not be null");
-        List<Animal> neighbours = new ArrayList<>();
+        List<Animal> neighbours = new ArrayList<>(8);
         for (Location adjacent : adjacentLocations(location)) {
             Animal animal = grid[adjacent.getRow()][adjacent.getCol()];
             if (animal != null && animal.isAlive()) {
@@ -165,20 +161,31 @@ public class Field {
     }
 
     /**
-     * Free adjacent locations (empty cells and plants) in random order.
+     * Free cells among already-scanned neighbours: empty cells and plants.
+     * Lets one shuffled neighbour list serve feeding, mating and wandering.
      *
-     * @param location origin
-     * @return shuffled free neighbours
+     * @param adjacent neighbouring locations in random order
+     * @return free neighbours, in the same order
      */
-    public List<Location> getFreeAdjacentLocations(Location location) {
-        List<Location> free = new LinkedList<>();
-        for (Location next : adjacentLocations(location)) {
+    public List<Location> freeAdjacentLocations(List<Location> adjacent) {
+        List<Location> free = new ArrayList<>(adjacent.size());
+        for (Location next : adjacent) {
             Animal occupant = getObjectAt(next);
             if (occupant == null || occupant instanceof Plant) {
                 free.add(next);
             }
         }
         return free;
+    }
+
+    /**
+     * Free adjacent locations (empty cells and plants) in random order.
+     *
+     * @param location origin
+     * @return shuffled free neighbours
+     */
+    public List<Location> getFreeAdjacentLocations(Location location) {
+        return freeAdjacentLocations(adjacentLocations(location));
     }
 
     /**
@@ -190,5 +197,22 @@ public class Field {
     public Location getFreeAdjacentLocation(Location location) {
         List<Location> free = getFreeAdjacentLocations(location);
         return free.isEmpty() ? null : free.get(0);
+    }
+
+    /**
+     * First free cell in an already-scanned neighbour list, or null when
+     * surrounded. Avoids a second neighbour scan on the wander path.
+     *
+     * @param adjacent neighbouring locations in random order
+     * @return a free neighbour, or null
+     */
+    public Location firstFreeAdjacentLocation(List<Location> adjacent) {
+        for (Location next : adjacent) {
+            Animal occupant = getObjectAt(next);
+            if (occupant == null || occupant instanceof Plant) {
+                return next;
+            }
+        }
+        return null;
     }
 }

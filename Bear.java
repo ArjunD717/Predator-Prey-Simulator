@@ -1,7 +1,7 @@
 import javafx.scene.paint.Color;
 
 /**
- * A bear hunts adjacent prey, breeds with a nearby male (females only),
+ * A bear hunts adjacent prey, breeds with an adjacent opposite-sex bear,
  * and dies of hunger, disease, old age or overcrowding.
  *
  * @author Arjun Dhir

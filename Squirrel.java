@@ -1,8 +1,8 @@
 import javafx.scene.paint.Color;
 
 /**
- * A squirrel grazes on adjacent plants, breeds with a nearby male
- * (females only), and is hunted as prey.
+ * A squirrel grazes on adjacent plants, breeds with an adjacent
+ * opposite-sex squirrel, and is hunted as prey.
  *
  * @author Arjun Dhir
  */

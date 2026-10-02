@@ -1,7 +1,7 @@
 import javafx.scene.paint.Color;
 
 /**
- * A coyote hunts adjacent prey, breeds with a nearby male (females only),
+ * A coyote hunts adjacent prey, breeds with an adjacent opposite-sex coyote,
  * and dies of hunger, disease, old age or overcrowding.
  *
  * @author Arjun Dhir

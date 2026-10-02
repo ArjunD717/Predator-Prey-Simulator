@@ -16,7 +16,7 @@ import javafx.scene.paint.Color;
  */
 public abstract class Animal {
 
-    /** Sex of an animal. Only females give birth, and only with a same-species male nearby. */
+    /** Sex of an animal. Mating needs one male and one female; either side may initiate. */
     public enum Gender {
         MALE, FEMALE
     }
@@ -94,11 +94,14 @@ public abstract class Animal {
     protected abstract int getSickDuration();
 
     /**
-     * Look for food adjacent to the current location, eating it when found.
+     * Look for food among the given neighbouring locations, eating it when
+     * found. Subclasses scan the same shuffled list the rest of the step
+     * reuses, so one allocation covers feeding, mating and wandering.
      *
+     * @param adjacent neighbouring locations in random order
      * @return the location to move to, or null when no food is in reach
      */
-    protected abstract Location findFood();
+    protected abstract Location findFood(List<Location> adjacent);
 
     /** Create one newborn of the concrete species. */
     protected abstract Animal createYoung(Field field, Location location, Gene gene);
@@ -118,12 +121,13 @@ public abstract class Animal {
         if (!alive) {
             return;
         }
-        spreadIllness();
-        giveBirth(newborns);
-        Location newLocation = findFood();
+        List<Location> adjacent = field.adjacentLocations(location);
+        spreadIllness(adjacent);
+        giveBirth(newborns, adjacent);
+        Location newLocation = findFood(adjacent);
         if (newLocation == null) {
             // No food found - try to move to a free location.
-            newLocation = field.getFreeAdjacentLocation(location);
+            newLocation = field.firstFreeAdjacentLocation(adjacent);
         }
         if (newLocation != null) {
             setLocation(newLocation);
@@ -150,9 +154,9 @@ public abstract class Animal {
         }
     }
 
-    /** Add food from a kill, topping up towards the maximum. */
+    /** Add food from a kill, clamping at the maximum so reserves stay bounded. */
     protected final void addFood(int amount) {
-        foodLevel += amount;
+        foodLevel = Math.min(foodLevel + amount, getFoodCapacity());
     }
 
     /** Refill to full after grazing. */
@@ -163,7 +167,8 @@ public abstract class Animal {
     /** Spontaneously fall sick according to the gene's disease probability. */
     private void becomeSick() {
         if (!sick && Randomizer.getRandom().nextDouble() < diseaseProbability) {
-            infect();
+            sick = true;
+            sickStepsRemaining = getSickDuration();
         }
     }
 
@@ -177,22 +182,18 @@ public abstract class Animal {
         }
     }
 
-    private void infect() {
-        sick = true;
-        sickStepsRemaining = getSickDuration();
-    }
-
-    /** Spread disease to adjacent animals of the same species. */
-    private void spreadIllness() {
+    /** Spread disease to same-species neighbours from the shared scan. */
+    private void spreadIllness(List<Location> adjacent) {
         if (!sick) {
             return;
         }
-        for (Location adjacent : field.adjacentLocations(location)) {
-            Animal neighbour = field.getObjectAt(adjacent);
-            if (neighbour != null && neighbour.getClass() == getClass()
-                    && neighbour.isAlive() && !neighbour.sick
+        for (Location neighbour : adjacent) {
+            Animal animal = field.getObjectAt(neighbour);
+            if (animal != null && animal.getClass() == getClass()
+                    && animal.isAlive() && !animal.sick
                     && Randomizer.getRandom().nextDouble() < getSpreadChance()) {
-                neighbour.infect();
+                animal.sick = true;
+                animal.sickStepsRemaining = animal.getSickDuration();
             }
         }
     }
@@ -203,23 +204,26 @@ public abstract class Animal {
      * either side may initiate, so a lone eligible animal beside any
      * opposite-sex mate can breed. At most one litter per step.
      */
-    private void giveBirth(List<Animal> newborns) {
+    private void giveBirth(List<Animal> newborns, List<Location> adjacent) {
         if (age < breedingAge) {
             return;
         }
-        for (Animal mate : field.getLivingNeighbours(location)) {
-            if (mate.getClass() != getClass() || mate.isMale() == isMale()) {
+        for (Location neighbour : adjacent) {
+            Animal animal = field.getObjectAt(neighbour);
+            if (animal == null || animal.getClass() != getClass()
+                    || !animal.isAlive() || animal.isMale() == isMale()) {
                 continue;
             }
             if (Randomizer.getRandom().nextDouble() > breedingProbability) {
                 continue;
             }
-            List<Location> free = field.getFreeAdjacentLocations(location);
+            Animal mate = animal;
+            List<Location> free = field.freeAdjacentLocations(adjacent);
             int births = Math.min(Randomizer.getRandom().nextInt(Math.max(1, maxLitterSize)) + 1, free.size());
             Gene father = isMale() ? gene : mate.getGene();
             Gene mother = isMale() ? mate.getGene() : gene;
             for (int b = 0; b < births; b++) {
-                newborns.add(createYoung(field, free.remove(0), Gene.combine(father, mother)));
+                newborns.add(createYoung(field, free.get(b), Gene.combine(father, mother)));
             }
             return;
         }

@@ -53,6 +53,9 @@ public class FieldCanvas extends Canvas {
     /**
      * Paint one cell.
      *
+     * <p>Called once per cell per frame; kept allocation-free (no boxing,
+     * no objects) so the 8k-cell repaint stays cheap.
+     *
      * @param x column
      * @param y row
      * @param color fill (must not be null)

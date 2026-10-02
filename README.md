@@ -89,10 +89,10 @@ The run stops by itself with a status message once fewer than two animal species
 
 Each step, every living animal acts once, in list order: age (+1, die past lifespan) →
 hunger (−metabolism, starve at zero) → possibly fall sick → disease countdown →
-infect same-species neighbours → females with an adjacent male may produce **one**
-litter in free neighbouring cells → move onto food if adjacent, else wander, else die
-of overcrowding. Deaths and moves leave a plant behind. Newborns join the population
-next step.
+one shuffled neighbour scan then covers infecting same-species neighbours, mating
+with an adjacent opposite-sex mate (at most one litter, capped at free cells),
+and moving onto food if adjacent, else wandering, else dying of overcrowding.
+Deaths and moves leave a plant behind. Newborns join the population next step.
 
 Species parameters:
 

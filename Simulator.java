@@ -30,6 +30,12 @@ public class Simulator {
     private static final double DEER_CREATION_PROBABILITY = 0.11;
     private static final double SQUIRREL_CREATION_PROBABILITY = 0.13;
 
+    private static final double BEAR_UPPER = WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY;
+    private static final double COYOTE_UPPER = BEAR_UPPER + COYOTE_CREATION_PROBABILITY;
+    private static final double SHEEP_UPPER = COYOTE_UPPER + SHEEP_CREATION_PROBABILITY;
+    private static final double DEER_UPPER = SHEEP_UPPER + DEER_CREATION_PROBABILITY;
+    private static final double SQUIRREL_UPPER = DEER_UPPER + SQUIRREL_CREATION_PROBABILITY;
+
     private final List<Animal> animals = new ArrayList<>();
     private final Field field;
     private int step;
@@ -49,7 +55,7 @@ public class Simulator {
      */
     public void simulateOneStep() {
         step++;
-        List<Animal> newborns = new ArrayList<>();
+        List<Animal> newborns = new ArrayList<>(animals.size() / 4 + 16);
         for (Iterator<Animal> it = animals.iterator(); it.hasNext(); ) {
             Animal animal = it.next();
             if (!animal.isAlive()) {
@@ -90,19 +96,19 @@ public class Simulator {
                 if (roll < WOLF_CREATION_PROBABILITY) {
                     animals.add(new Wolf(true, field, location, Color.BLUE, new Gene()));
                 }
-                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY) {
+                else if (roll < BEAR_UPPER) {
                     animals.add(new Bear(true, field, location, Color.YELLOW, new Gene()));
                 }
-                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY + COYOTE_CREATION_PROBABILITY) {
+                else if (roll < COYOTE_UPPER) {
                     animals.add(new Coyote(true, field, location, Color.RED, new Gene()));
                 }
-                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY + COYOTE_CREATION_PROBABILITY + SHEEP_CREATION_PROBABILITY) {
+                else if (roll < SHEEP_UPPER) {
                     animals.add(new Sheep(true, field, location, Color.PURPLE, new Gene()));
                 }
-                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY + COYOTE_CREATION_PROBABILITY + SHEEP_CREATION_PROBABILITY + DEER_CREATION_PROBABILITY) {
+                else if (roll < DEER_UPPER) {
                     animals.add(new Deer(true, field, location, Color.BROWN, new Gene()));
                 }
-                else if (roll < WOLF_CREATION_PROBABILITY + BEAR_CREATION_PROBABILITY + COYOTE_CREATION_PROBABILITY + SHEEP_CREATION_PROBABILITY + DEER_CREATION_PROBABILITY + SQUIRREL_CREATION_PROBABILITY) {
+                else if (roll < SQUIRREL_UPPER) {
                     animals.add(new Squirrel(true, field, location, Color.PINK, new Gene()));
                 }
                 else {

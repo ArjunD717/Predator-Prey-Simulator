@@ -96,7 +96,7 @@ public class SimulatorView extends Application {
         for (int row = 0; row < field.getDepth(); row++) {
             for (int col = 0; col < field.getWidth(); col++) {
                 Animal animal = field.getObjectAt(row, col);
-                if (animal != null && animal.isAlive()) {
+                if (animal != null) {
                     if (!(animal instanceof Plant)) {
                         stats.incrementCount(animal.getClass());
                     }

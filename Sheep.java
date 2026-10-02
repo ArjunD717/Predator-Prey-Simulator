@@ -1,8 +1,8 @@
 import javafx.scene.paint.Color;
 
 /**
- * A sheep grazes on adjacent plants, breeds with a nearby ram (ewes only),
- * and is hunted as prey.
+ * A sheep grazes on adjacent plants, breeds with an adjacent opposite-sex
+ * sheep, and is hunted as prey.
  *
  * @author Arjun Dhir
  */

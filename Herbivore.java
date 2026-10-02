@@ -1,3 +1,4 @@
+import java.util.List;
 import javafx.scene.paint.Color;
 
 /**
@@ -22,14 +23,15 @@ public abstract class Herbivore extends Animal implements Prey {
     }
 
     /**
-     * Graze on the first palatable adjacent plant.
+     * Graze on the first palatable plant among the given neighbours.
      *
+     * @param adjacent neighbouring locations in random order
      * @return where food was found, or null if there was none
      */
     @Override
-    protected final Location findFood() {
+    protected final Location findFood(List<Location> adjacent) {
         Field field = getField();
-        for (Location where : field.adjacentLocations(getLocation())) {
+        for (Location where : adjacent) {
             if (field.getObjectAt(where) instanceof Plant
                     && Randomizer.getRandom().nextDouble() < getGrazeProbability()) {
                 restoreFood();

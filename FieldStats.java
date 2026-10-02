@@ -1,5 +1,7 @@
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -36,12 +38,10 @@ public class FieldStats {
         return buffer.toString();
     }
 
-    /** Drop all counts; they are rebuilt lazily on next read. */
+    /** Drop all counts; they are rebuilt on the next read. */
     public void reset() {
         countsValid = false;
-        for (Counter counter : counters.values()) {
-            counter.reset();
-        }
+        counters.clear();
     }
 
     /**
@@ -67,26 +67,29 @@ public class FieldStats {
      * The run stays viable while at least two non-plant species are alive;
      * a single surviving species (or an empty field) has nothing left to
      * simulate. Plants are ground cover, not a species in this check.
+     * Short-circuits on the second live species instead of counting the
+     * whole field, since the animation loop calls this every step.
      *
      * @param field field to check
      * @return true if the simulation should continue
      */
     public boolean isViable(Field field) {
-        if (!countsValid) {
-            generateCounts(field);
-        }
-        int speciesAlive = 0;
-        for (Map.Entry<Class<?>, Counter> entry : counters.entrySet()) {
-            if (entry.getKey() != Plant.class && entry.getValue().getCount() > 0) {
-                speciesAlive++;
+        Set<Class<?>> species = new HashSet<>(8);
+        for (int row = 0; row < field.getDepth(); row++) {
+            for (int col = 0; col < field.getWidth(); col++) {
+                Animal animal = field.getObjectAt(row, col);
+                if (animal != null && animal.isAlive() && !(animal instanceof Plant)
+                        && species.add(animal.getClass()) && species.size() >= 2) {
+                    return true;
+                }
             }
         }
-        return speciesAlive >= 2;
+        return false;
     }
 
     /**
      * Recount every cell. Not kept up to date; callers go through
-     * {@link #getPopulationDetails(Field)} or {@link #isViable(Field)}.
+     * {@link #getPopulationDetails(Field)}.
      *
      * @param field field to count
      */

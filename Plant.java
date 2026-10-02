@@ -1,3 +1,4 @@
+import java.util.List;
 import javafx.scene.paint.Color;
 
 /**
@@ -34,7 +35,7 @@ public class Plant extends Animal {
     }
 
     @Override
-    protected Location findFood() {
+    protected Location findFood(List<Location> adjacent) {
         return null;
     }
 
@@ -44,7 +45,7 @@ public class Plant extends Animal {
     }
 
     @Override
-    public void act(java.util.List<Animal> newborns) {
+    public void act(List<Animal> newborns) {
         // Plants do nothing.
     }
 }
